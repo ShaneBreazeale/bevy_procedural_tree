@@ -1,3 +1,8 @@
+### Unreleased
+* Add LOD generation helpers and deterministic archetype-pool generation.
+* Add settings-pool archetype generation for stronger silhouette variation.
+* Add an archetype/LOD grid example.
+
 ### v0.3
 * migrate to bevy 0.18
 

@@ -8,10 +8,13 @@ Procedural 3D trees for bevy - ported from the javascript ez-tree repository wit
 * Generation by global TreeMeshSettings or per instance (chosen per entity)
 * User can provide a material for the branches and leafs separately 
 * Auto regeneration of the meshes when the settings change
+* LOD and archetype-pool helpers for games that cache, batch, or instance trees themselves
 * Optional use of u32_indices for the mesh (default is u16; see `u32_indices` feature in Cargo.toml)
 
 ## Usage
 See the showroom example: ```cargo run --example showroom --features "inspector"```
+
+To inspect generated LODs and seed-stable archetype pools, run: ```cargo run --example lod_archetype_pool```
 
 In the showroom are two trees: The tree in the middle uses the global `TreeMeshSettings` resource. The tree to the side uses the `TreeMeshSettings` component, which can be modified on the entity itself via the inspector.
 
@@ -25,6 +28,8 @@ Internally this will generate the Mesh3d for the entity and a child entity for t
 ### Quick start (without TreeProceduralGenerationPlugin)
 1. use `bevy_procedural_tree::meshgen::generate_tree_meshes()` to generate two meshes (branches/trunk mesh and leaves mesh)
 2. use the meshes for anything you like
+
+For repeated trees, use `bevy_procedural_tree::lod::generate_archetypes()` to build a deterministic pool of seed-jittered variants, each with multiple generated LOD levels. If seed-only variation is too subtle, use `generate_archetypes_from_settings()` with a prepared set of varied `TreeMeshSettings`.
 
 ### Explanation of the most important structs
 #### TreeMeshSettings resource
@@ -45,7 +50,7 @@ Added to an entity to generate a new tree. It has 4 parameters:
 * Provide an example vertex shader for wind
 * Implement "growing"
 * Caching of already generated trees (i.e. with the lru crate)
-* Multiple LODs
+* Runtime LOD switching example
 * Different "normal" modes (currently just orthogonal to the surface; i.e. inspiration: [Reddit: Fluffy trees](https://www.reddit.com/r/Unity3D/comments/jhwfkj/fluffy_trees_using_custom_shader_that_turns_quad/))
 
 ## Future research

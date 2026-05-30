@@ -3,6 +3,7 @@ pub mod settings;
 pub mod errors;
 
 pub mod meshgen;
+pub mod lod;
 
 use bevy::{ecs::{lifecycle::HookContext, world::DeferredWorld}, prelude::*};
 use fastrand::Rng;
