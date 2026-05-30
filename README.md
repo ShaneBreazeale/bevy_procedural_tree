@@ -45,6 +45,43 @@ Internally this will generate the Mesh3d for the entity and a child entity for t
 
 For repeated trees, use `bevy_procedural_tree::lod::generate_archetypes()` to build a deterministic pool of seed-jittered variants, each with multiple generated LOD levels. LOD generation reduces branch tessellation and leaf-card density while keeping the same broad tree shape. The default `LodReduction::balanced()` profile is tuned from the course-scale benchmark; use `aggressive()` for background-heavy scenes and `conservative()` for hero trees. If seed-only variation is too subtle, use `generate_archetypes_from_settings()` with a prepared set of varied `TreeMeshSettings`.
 
+### LOD and archetype pools
+The `lod` module is intended for games that already handle their own caching, instancing, batching, or chunk baking. It does not spawn entities and it does not choose materials; it only returns branch and leaf `Mesh` pairs.
+
+```rust
+use bevy_procedural_tree::lod::generate_archetypes;
+use bevy_procedural_tree::settings::TreeMeshSettings;
+
+let settings = TreeMeshSettings::default();
+let archetypes = generate_archetypes(
+    &settings,
+    12_345, // base seed
+    24,     // archetype count
+    3,      // LOD levels
+)?;
+
+// Pick an archetype deterministically, for example from a world-position hash.
+let tree = &archetypes[archetype_index];
+let (branch_mesh, leaf_mesh) = &tree.lods[lod_level];
+```
+
+`LodReduction::default()` is currently `LodReduction::balanced()`. The included benchmark compares these profiles:
+
+* `balanced()` - default; keeps most of the course-scale savings while preserving more visible detail
+* `aggressive()` - lower geometry for dense background forests or stylized distant trees
+* `conservative()` - higher detail for hero trees or close camera work
+
+For stronger shape variation than seed changes alone provide, prepare several `TreeMeshSettings` presets and call `generate_archetypes_from_settings()` or `generate_archetypes_from_settings_with_reduction()`.
+
+### Course-scale benchmark
+The benchmark example estimates mesh generation cost and course-scale placement cost for 24 archetypes, 3 LOD levels, and 3,096 deterministic tree placements:
+
+```bash
+cargo run --example lod_course_scale_bench --features u32_indices
+```
+
+It prints CSV-style sections for per-mesh stats, camera-distance LOD assignment, and profile summaries. Use it to tune `LodReduction` values before wiring generated trees into a larger renderer.
+
 ### Explanation of the most important structs
 #### TreeMeshSettings resource
 Defines the general structure of the generated 3d mesh. Every parameter is documented.

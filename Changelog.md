@@ -4,6 +4,7 @@
 * Add settings-pool archetype generation for stronger silhouette variation.
 * Add an archetype/LOD grid example.
 * Add a course-scale LOD benchmark example.
+* Document LOD/archetype-pool usage and benchmark workflow in the README.
 
 ### v0.3
 * migrate to bevy 0.18
