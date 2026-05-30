@@ -114,20 +114,20 @@ fn recurse_a_branch(
     leaves_attributes: &mut MeshAttributes
 ) -> Result<(), BevyError>
 {       
+    let indices_start_usize = branches_attributes.positions.len();
+    let amount_of_vertices_of_this_branch: usize = (state.sections + 1) * (state.segments + 1);
     #[cfg(not(feature = "u32_indices"))]
-    let indices_start: u16 = branches_attributes.positions.len() as u16;
-    #[cfg(feature = "u32_indices")]
-    let indices_start: u32 = branches_attributes.positions.len() as u32;
-    // catch going outside of the allowed range early and tell the user
-    let approx_amount_of_indices_of_this_branch: usize = state.sections * state.segments * 6;
-    #[cfg(not(feature = "u32_indices"))]
-    if branches_attributes.indices.len() >= (u16::MAX as usize - approx_amount_of_indices_of_this_branch) {
+    if indices_start_usize + amount_of_vertices_of_this_branch > u16::MAX as usize + 1 {
         return Err(IndicesOverflowError.into());
     }
     #[cfg(feature = "u32_indices")]
-    if branches_attributes.indices.len() >= (u32::MAX as usize - approx_amount_of_indices_of_this_branch) {
+    if indices_start_usize + amount_of_vertices_of_this_branch > u32::MAX as usize {
         return Err(IndicesOverflowError.into());
     }
+    #[cfg(not(feature = "u32_indices"))]
+    let indices_start: u16 = indices_start_usize as u16;
+    #[cfg(feature = "u32_indices")]
+    let indices_start: u32 = indices_start_usize as u32;
 
     // local section storage    
     let mut sections: Vec<SectionData> = Vec::with_capacity(state.sections);
@@ -425,17 +425,6 @@ fn generate_leaves(
     leaves_attributes: &mut MeshAttributes
 ) -> Result<(), BevyError>
 {
-    // catch going outside of the allowed range early and tell the user
-    let approx_amount_of_indices_of_this_leaf: usize = settings.leaves.count as usize * 6;
-    #[cfg(not(feature = "u32_indices"))]
-    if leaves_attributes.indices.len() >= (u16::MAX as usize - approx_amount_of_indices_of_this_leaf) {
-        return Err(IndicesOverflowError.into());
-    }
-    #[cfg(feature = "u32_indices")]
-    if leaves_attributes.indices.len() >= (u32::MAX as usize - approx_amount_of_indices_of_this_leaf) {
-        return Err(IndicesOverflowError.into());
-    }
-
     let radial_offset: f32 = rng.f32();
     let section_count_minus_one: usize = sections.len().saturating_sub(1);  
 
@@ -481,11 +470,6 @@ fn generate_leaf(
     leaves_attributes: &mut MeshAttributes
 ) -> Result<(), BevyError>
 {
-    #[cfg(not(feature = "u32_indices"))]
-    let mut indices_start: u16 = leaves_attributes.positions.len() as u16;
-    #[cfg(feature = "u32_indices")]
-    let mut indices_start: u32 = leaves_attributes.positions.len() as u32;
-
     let leaf_size_variance = (2.0 * rng.f32() - 1.0) * settings.leaves.size_variance.max(0.0);
     let leaf_size = settings.leaves.size * (1.0 + leaf_size_variance);
     let leaf_size_half = leaf_size / 2.0;
@@ -494,6 +478,21 @@ fn generate_leaf(
         crate::enums::LeafBillboard::Single => &[0.0],
         crate::enums::LeafBillboard::Double => &[0.0, f32::consts::FRAC_PI_2],
     };
+
+    let indices_start_usize = leaves_attributes.positions.len();
+    let amount_of_vertices_of_this_leaf = rotations.len() * 4;
+    #[cfg(not(feature = "u32_indices"))]
+    if indices_start_usize + amount_of_vertices_of_this_leaf > u16::MAX as usize + 1 {
+        return Err(IndicesOverflowError.into());
+    }
+    #[cfg(feature = "u32_indices")]
+    if indices_start_usize + amount_of_vertices_of_this_leaf > u32::MAX as usize {
+        return Err(IndicesOverflowError.into());
+    }
+    #[cfg(not(feature = "u32_indices"))]
+    let mut indices_start: u16 = indices_start_usize as u16;
+    #[cfg(feature = "u32_indices")]
+    let mut indices_start: u32 = indices_start_usize as u32;
 
     for rotation in rotations.iter() {
         let leaf_orientation = orientation * Quat::from_euler(EulerRot::XYX, 0.0, *rotation, 0.0);

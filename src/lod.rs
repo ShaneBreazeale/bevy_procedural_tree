@@ -297,6 +297,8 @@ mod tests {
     use super::*;
     use bevy::mesh::{Indices, VertexAttributeValues};
 
+    use crate::presets::tree_preset_settings;
+
     fn positions(mesh: &Mesh) -> &Vec<[f32; 3]> {
         match mesh.attribute(Mesh::ATTRIBUTE_POSITION) {
             Some(VertexAttributeValues::Float32x3(positions)) => positions,
@@ -449,6 +451,22 @@ mod tests {
             assert_mesh_contract(branch_mesh);
             assert_mesh_contract(leaf_mesh);
             assert_leaf_uv_contract(leaf_mesh);
+        }
+    }
+
+    #[test]
+    fn preset_pool_generates_in_default_index_mode() {
+        let settings = tree_preset_settings(6);
+
+        for reduction in [
+            LodReduction::balanced(),
+            LodReduction::aggressive(),
+            LodReduction::conservative(),
+        ] {
+            let archetypes =
+                generate_archetypes_from_settings_with_reduction(&settings, 42, 3, reduction)
+                    .expect("preset archetype generation should fit the active index type");
+            assert_eq!(archetypes.len(), settings.len());
         }
     }
 

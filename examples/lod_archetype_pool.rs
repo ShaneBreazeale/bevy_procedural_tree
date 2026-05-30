@@ -315,11 +315,13 @@ fn setup(
                 let branch_stats = mesh_stats(&branches);
                 let leaf_stats = mesh_stats(&leaves);
                 profile_stats.lods[row] = profile_stats.lods[row].add(branch_stats).add(leaf_stats);
+                let min_y = mesh_min_y(&branches).min(mesh_min_y(&leaves));
+                let y_offset = (-min_y).max(0.0) * DISPLAY_SCALE;
 
                 let x = column as f32 * CELL_X;
                 let z = profile.origin_z() + row as f32 * CELL_Z;
                 let transform =
-                    Transform::from_xyz(x, 0.0, z).with_scale(Vec3::splat(DISPLAY_SCALE));
+                    Transform::from_xyz(x, y_offset, z).with_scale(Vec3::splat(DISPLAY_SCALE));
 
                 commands.spawn((
                     Mesh3d(meshes.add(branches)),
@@ -361,6 +363,15 @@ fn vertex_count(mesh: &Mesh) -> usize {
     match mesh.attribute(Mesh::ATTRIBUTE_POSITION) {
         Some(VertexAttributeValues::Float32x3(positions)) => positions.len(),
         _ => 0,
+    }
+}
+
+fn mesh_min_y(mesh: &Mesh) -> f32 {
+    match mesh.attribute(Mesh::ATTRIBUTE_POSITION) {
+        Some(VertexAttributeValues::Float32x3(positions)) => {
+            positions.iter().map(|p| p[1]).fold(f32::INFINITY, f32::min)
+        }
+        _ => 0.0,
     }
 }
 
