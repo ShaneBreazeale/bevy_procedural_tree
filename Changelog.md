@@ -1,7 +1,8 @@
 ### Unreleased
-* Add LOD generation helpers and deterministic archetype-pool generation.
+* Add LOD generation helpers and deterministic archetype-pool generation, including branch tessellation and leaf-card density reduction.
 * Add settings-pool archetype generation for stronger silhouette variation.
 * Add an archetype/LOD grid example.
+* Add a course-scale LOD benchmark example.
 
 ### v0.3
 * migrate to bevy 0.18

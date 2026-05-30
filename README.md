@@ -12,9 +12,23 @@ Procedural 3D trees for bevy - ported from the javascript ez-tree repository wit
 * Optional use of u32_indices for the mesh (default is u16; see `u32_indices` feature in Cargo.toml)
 
 ## Usage
-See the showroom example: ```cargo run --example showroom --features "inspector"```
+See the showroom example:
 
-To inspect generated LODs and seed-stable archetype pools, run: ```cargo run --example lod_archetype_pool```
+```bash
+cargo run --example showroom --features "inspector"
+```
+
+To inspect generated LODs and seed-stable archetype pools, run:
+
+```bash
+cargo run --example lod_archetype_pool
+```
+
+To print CSV-style LOD mesh stats and course-scale placement estimates, run:
+
+```bash
+cargo run --example lod_course_scale_bench --features u32_indices
+```
 
 In the showroom are two trees: The tree in the middle uses the global `TreeMeshSettings` resource. The tree to the side uses the `TreeMeshSettings` component, which can be modified on the entity itself via the inspector.
 
@@ -29,7 +43,7 @@ Internally this will generate the Mesh3d for the entity and a child entity for t
 1. use `bevy_procedural_tree::meshgen::generate_tree_meshes()` to generate two meshes (branches/trunk mesh and leaves mesh)
 2. use the meshes for anything you like
 
-For repeated trees, use `bevy_procedural_tree::lod::generate_archetypes()` to build a deterministic pool of seed-jittered variants, each with multiple generated LOD levels. If seed-only variation is too subtle, use `generate_archetypes_from_settings()` with a prepared set of varied `TreeMeshSettings`.
+For repeated trees, use `bevy_procedural_tree::lod::generate_archetypes()` to build a deterministic pool of seed-jittered variants, each with multiple generated LOD levels. LOD generation reduces branch tessellation and leaf-card density while keeping the same broad tree shape. If seed-only variation is too subtle, use `generate_archetypes_from_settings()` with a prepared set of varied `TreeMeshSettings`.
 
 ### Explanation of the most important structs
 #### TreeMeshSettings resource
