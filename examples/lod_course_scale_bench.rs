@@ -217,16 +217,7 @@ fn profiles() -> [Profile; 4] {
         },
         Profile {
             name: "balanced",
-            reduction: LodReduction {
-                detail_loss_per_level: 1.5,
-                min_segments: 3,
-                min_sections: 1,
-                section_preserve: 0.45,
-                leaf_loss_per_level: 0.55,
-                min_leaf_count: 1,
-                single_leaf_billboard_from_level: 2,
-                leaf_size_compensation: 0.25,
-            },
+            reduction: LodReduction::balanced(),
         },
         Profile {
             name: "aggressive",

@@ -74,6 +74,24 @@ impl LodReduction {
         }
     }
 
+    /// Balanced profile chosen as the default for course-scale scenes.
+    ///
+    /// In the included course-scale benchmark this keeps most of the savings
+    /// from [`Self::aggressive`] while leaving more foliage and branch detail
+    /// for visible trees.
+    pub const fn balanced() -> Self {
+        Self {
+            detail_loss_per_level: 1.5,
+            min_segments: 3,
+            min_sections: 1,
+            section_preserve: 0.45,
+            leaf_loss_per_level: 0.55,
+            min_leaf_count: 1,
+            single_leaf_billboard_from_level: 2,
+            leaf_size_compensation: 0.25,
+        }
+    }
+
     /// Aggressive profile intended for stylized or distant background trees.
     pub const fn aggressive() -> Self {
         Self {
@@ -120,7 +138,7 @@ impl LodReduction {
 
 impl Default for LodReduction {
     fn default() -> Self {
-        Self::aggressive()
+        Self::balanced()
     }
 }
 
@@ -294,16 +312,16 @@ mod tests {
     }
 
     #[test]
-    fn aggressive_lod_reduces_segments_and_sections() {
+    fn default_balanced_lod_reduces_segments_sections_and_leaves() {
         let base = TreeMeshSettings::default();
 
         let lod1 = lod_settings(&base, 1);
         let lod2 = lod_settings(&base, 2);
 
         assert_eq!(lod1.branch.segments, [3, 3, 3, 3]);
-        assert_eq!(lod1.branch.sections, [7, 5, 4, 2]);
+        assert_eq!(lod1.branch.sections, [8, 5, 4, 3]);
         assert_eq!(lod2.branch.segments, [3, 3, 3, 3]);
-        assert_eq!(lod2.branch.sections, [6, 4, 3, 2]);
+        assert_eq!(lod2.branch.sections, [7, 5, 4, 2]);
         assert_eq!(lod1.leaves.count, 2);
         assert_eq!(lod2.leaves.count, 1);
         assert_eq!(lod2.leaves.leaf_billboard, LeafBillboard::Single);

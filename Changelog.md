@@ -1,5 +1,6 @@
 ### Unreleased
 * Add LOD generation helpers and deterministic archetype-pool generation, including branch tessellation and leaf-card density reduction.
+* Make the benchmark-selected balanced LOD profile the default, with conservative and aggressive presets available explicitly.
 * Add settings-pool archetype generation for stronger silhouette variation.
 * Add an archetype/LOD grid example.
 * Add a course-scale LOD benchmark example.

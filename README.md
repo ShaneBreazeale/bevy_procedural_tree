@@ -43,7 +43,7 @@ Internally this will generate the Mesh3d for the entity and a child entity for t
 1. use `bevy_procedural_tree::meshgen::generate_tree_meshes()` to generate two meshes (branches/trunk mesh and leaves mesh)
 2. use the meshes for anything you like
 
-For repeated trees, use `bevy_procedural_tree::lod::generate_archetypes()` to build a deterministic pool of seed-jittered variants, each with multiple generated LOD levels. LOD generation reduces branch tessellation and leaf-card density while keeping the same broad tree shape. If seed-only variation is too subtle, use `generate_archetypes_from_settings()` with a prepared set of varied `TreeMeshSettings`.
+For repeated trees, use `bevy_procedural_tree::lod::generate_archetypes()` to build a deterministic pool of seed-jittered variants, each with multiple generated LOD levels. LOD generation reduces branch tessellation and leaf-card density while keeping the same broad tree shape. The default `LodReduction::balanced()` profile is tuned from the course-scale benchmark; use `aggressive()` for background-heavy scenes and `conservative()` for hero trees. If seed-only variation is too subtle, use `generate_archetypes_from_settings()` with a prepared set of varied `TreeMeshSettings`.
 
 ### Explanation of the most important structs
 #### TreeMeshSettings resource

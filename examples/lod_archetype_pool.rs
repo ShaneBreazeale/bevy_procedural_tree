@@ -161,7 +161,7 @@ fn setup(
         &settings,
         BASE_SEED,
         LOD_LEVELS,
-        LodReduction::aggressive(),
+        LodReduction::balanced(),
     )
     .expect("tree archetype generation should succeed");
 
