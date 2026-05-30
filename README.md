@@ -108,7 +108,9 @@ use bevy_procedural_tree::cache::{
     read_archetype_cache, write_archetype_cache, CachedArchetypePool,
 };
 use bevy_procedural_tree::lod::{generate_archetypes_from_settings, TreeArchetype};
+use bevy_procedural_tree::presets::tree_preset_settings;
 
+let settings = tree_preset_settings(24);
 let archetypes: Vec<TreeArchetype> = generate_archetypes_from_settings(&settings, seed, 3)?;
 let cache = CachedArchetypePool::from_archetypes(&archetypes)?;
 write_archetype_cache("target/tree_archetypes.bptc", &cache)?;
@@ -146,8 +148,9 @@ Added to an entity to generate a new tree. It has 4 parameters:
 * Do not regenerate the whole tree each time the settings change (but do partial updates)
 * Provide an example vertex shader for wind
 * Implement "growing"
-* Caching of already generated trees (i.e. with the lru crate)
+* Runtime cache invalidation helpers for apps that rebuild archetype pools from changing settings
 * Runtime LOD switching example
+* True chunk-combine batching example for static course-scale scenes
 * Different "normal" modes (currently just orthogonal to the surface; i.e. inspiration: [Reddit: Fluffy trees](https://www.reddit.com/r/Unity3D/comments/jhwfkj/fluffy_trees_using_custom_shader_that_turns_quad/))
 
 ## Future research
