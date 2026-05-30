@@ -5,7 +5,7 @@
 //! procedural generation at startup.
 
 use std::{
-    fs::File,
+    fs::{self, File},
     io::{self, BufReader, BufWriter, Read, Write},
     path::Path,
 };
@@ -16,9 +16,13 @@ use bevy::{
     prelude::*,
 };
 
-use crate::lod::TreeArchetype;
+use crate::enums::{LeafBillboard, TreeType};
+use crate::lod::{LodReduction, TreeArchetype};
+use crate::settings::TreeMeshSettings;
 
 const MAGIC: &[u8; 8] = b"BPTCCH1\0";
+const CACHE_KEY_OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
+const CACHE_KEY_PRIME: u64 = 0x0000_0100_0000_01b3;
 
 #[derive(Clone, Debug)]
 pub struct CachedArchetypePool {
@@ -44,6 +48,27 @@ pub struct CachedMesh {
     pub uvs: Vec<[f32; 2]>,
     pub tangents: Vec<[f32; 4]>,
     pub indices: Vec<u32>,
+}
+
+/// Stable fingerprint for the inputs used to generate an archetype cache.
+///
+/// Store this next to an on-disk [`CachedArchetypePool`] and compare it before
+/// loading. If any settings, seed, LOD count, or reduction profile changes, the
+/// key changes and callers can rebuild the cache.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ArchetypeCacheKey(pub u64);
+
+impl ArchetypeCacheKey {
+    pub fn to_hex(self) -> String {
+        format!("{:016x}", self.0)
+    }
+
+    pub fn from_hex(value: &str) -> io::Result<Self> {
+        let trimmed = value.trim();
+        u64::from_str_radix(trimmed, 16)
+            .map(Self)
+            .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))
+    }
 }
 
 impl CachedArchetypePool {
@@ -201,6 +226,43 @@ pub fn read_archetype_cache(path: impl AsRef<Path>) -> io::Result<CachedArchetyp
     Ok(CachedArchetypePool { archetypes })
 }
 
+pub fn archetype_cache_key(
+    settings: &[TreeMeshSettings],
+    base_seed: u64,
+    lod_levels: u32,
+    reduction: LodReduction,
+) -> ArchetypeCacheKey {
+    let mut hash = CACHE_KEY_OFFSET;
+    hash_u64(&mut hash, base_seed);
+    hash_u32(&mut hash, lod_levels);
+    hash_lod_reduction(&mut hash, reduction);
+    hash_u64(&mut hash, settings.len() as u64);
+    for setting in settings {
+        hash_tree_settings(&mut hash, setting);
+    }
+    ArchetypeCacheKey(hash)
+}
+
+pub fn write_archetype_cache_key(path: impl AsRef<Path>, key: ArchetypeCacheKey) -> io::Result<()> {
+    fs::write(path, format!("{}\n", key.to_hex()))
+}
+
+pub fn read_archetype_cache_key(path: impl AsRef<Path>) -> io::Result<ArchetypeCacheKey> {
+    ArchetypeCacheKey::from_hex(&fs::read_to_string(path)?)
+}
+
+/// Returns `false` when the key file is missing or does not match.
+pub fn archetype_cache_key_matches(
+    path: impl AsRef<Path>,
+    expected: ArchetypeCacheKey,
+) -> io::Result<bool> {
+    match read_archetype_cache_key(path) {
+        Ok(actual) => Ok(actual == expected),
+        Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(false),
+        Err(err) => Err(err),
+    }
+}
+
 fn float3_attribute<'a>(
     mesh: &'a Mesh,
     attribute: MeshVertexAttribute,
@@ -212,6 +274,89 @@ fn float3_attribute<'a>(
             io::ErrorKind::InvalidData,
             format!("mesh is missing Float32x3 {name}"),
         )),
+    }
+}
+
+fn hash_tree_settings(hash: &mut u64, settings: &TreeMeshSettings) {
+    hash_u8(
+        hash,
+        match settings.tree_type {
+            TreeType::Deciduous => 0,
+            TreeType::Evergreen => 1,
+        },
+    );
+    hash_u8(hash, u8::from(settings.branch.levels));
+    hash_f32_array(hash, &settings.branch.angle);
+    hash_u8_array(hash, &settings.branch.children);
+    hash_f32(hash, settings.branch.force.direction.x);
+    hash_f32(hash, settings.branch.force.direction.y);
+    hash_f32(hash, settings.branch.force.direction.z);
+    hash_f32(hash, settings.branch.force.strength);
+    hash_f32(hash, settings.branch.force.radius_cutoff);
+    hash_f32_array(hash, &settings.branch.gnarliness);
+    hash_f32_array(hash, &settings.branch.length);
+    hash_f32(hash, settings.branch.trunk_base_radius);
+    hash_f32_array(hash, &settings.branch.radius_factor);
+    hash_u8_array(hash, &settings.branch.sections);
+    hash_u8_array(hash, &settings.branch.segments);
+    hash_f32_array(hash, &settings.branch.start);
+    hash_f32_array(hash, &settings.branch.taper);
+    hash_f32_array(hash, &settings.branch.twist);
+    hash_u8(
+        hash,
+        match settings.leaves.leaf_billboard {
+            LeafBillboard::Single => 0,
+            LeafBillboard::Double => 1,
+        },
+    );
+    hash_f32(hash, settings.leaves.angle);
+    hash_u32(hash, settings.leaves.count);
+    hash_f32(hash, settings.leaves.start);
+    hash_f32(hash, settings.leaves.size);
+    hash_f32(hash, settings.leaves.size_variance);
+}
+
+fn hash_lod_reduction(hash: &mut u64, reduction: LodReduction) {
+    hash_f32(hash, reduction.detail_loss_per_level);
+    hash_u8(hash, reduction.min_segments);
+    hash_u8(hash, reduction.min_sections);
+    hash_f32(hash, reduction.section_preserve);
+    hash_f32(hash, reduction.leaf_loss_per_level);
+    hash_u32(hash, reduction.min_leaf_count);
+    hash_u32(hash, reduction.single_leaf_billboard_from_level);
+    hash_f32(hash, reduction.leaf_size_compensation);
+}
+
+fn hash_f32_array(hash: &mut u64, values: &[f32]) {
+    for value in values {
+        hash_f32(hash, *value);
+    }
+}
+
+fn hash_u8_array(hash: &mut u64, values: &[u8]) {
+    for value in values {
+        hash_u8(hash, *value);
+    }
+}
+
+fn hash_f32(hash: &mut u64, value: f32) {
+    hash_u32(hash, value.to_bits());
+}
+
+fn hash_u8(hash: &mut u64, value: u8) {
+    *hash ^= value as u64;
+    *hash = hash.wrapping_mul(CACHE_KEY_PRIME);
+}
+
+fn hash_u32(hash: &mut u64, value: u32) {
+    for byte in value.to_le_bytes() {
+        hash_u8(hash, byte);
+    }
+}
+
+fn hash_u64(hash: &mut u64, value: u64) {
+    for byte in value.to_le_bytes() {
+        hash_u8(hash, byte);
     }
 }
 
@@ -378,6 +523,56 @@ mod tests {
                 assert!(!loaded_lod.leaves.indices.is_empty());
             }
         }
+    }
+
+    #[test]
+    fn archetype_cache_key_changes_when_generation_inputs_change() {
+        let mut settings = tree_preset_settings(2);
+        let original = archetype_cache_key(&settings, 1234, 3, LodReduction::balanced());
+
+        settings[0].leaves.count += 1;
+        assert_ne!(
+            original,
+            archetype_cache_key(&settings, 1234, 3, LodReduction::balanced())
+        );
+        settings[0].leaves.count -= 1;
+
+        assert_ne!(
+            original,
+            archetype_cache_key(&settings, 1235, 3, LodReduction::balanced())
+        );
+        assert_ne!(
+            original,
+            archetype_cache_key(&settings, 1234, 2, LodReduction::balanced())
+        );
+        assert_ne!(
+            original,
+            archetype_cache_key(&settings, 1234, 3, LodReduction::aggressive())
+        );
+    }
+
+    #[test]
+    fn archetype_cache_key_sidecar_round_trips_and_matches() {
+        let key = ArchetypeCacheKey(0x1234_abcd_dead_beef);
+        let path = std::env::temp_dir().join(format!(
+            "bevy_procedural_tree_cache_key_test_{}.meta",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_file(&path);
+
+        assert!(!archetype_cache_key_matches(&path, key)
+            .expect("missing key file should be treated as stale"));
+        write_archetype_cache_key(&path, key).expect("cache key write should succeed");
+        assert_eq!(
+            read_archetype_cache_key(&path).expect("cache key read should succeed"),
+            key
+        );
+        assert!(archetype_cache_key_matches(&path, key).expect("cache key match should succeed"));
+        assert!(
+            !archetype_cache_key_matches(&path, ArchetypeCacheKey(key.0 + 1))
+                .expect("cache key mismatch should succeed")
+        );
+        let _ = std::fs::remove_file(&path);
     }
 
     fn vertex_count(mesh: &Mesh) -> usize {

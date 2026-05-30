@@ -38,13 +38,25 @@ To print CSV-style LOD mesh stats and course-scale placement estimates, run:
 cargo run --example lod_course_scale_bench --features u32_indices
 ```
 
-To see a build-time cache plus placement batching/instancing workflow, run:
+To see a build-time cache plus static chunk-combine batching workflow, run:
 
 ```bash
 cargo run --example lod_cached_batching
 ```
 
-This example writes `target/tree_archetype_pool.bptc` the first time it runs, then reloads the cached branch/leaf meshes on later runs. It places 3,096 deterministic trees and groups them by `(archetype, lod)` so all placements in a group reuse the same mesh handles.
+This example writes `target/tree_archetype_pool.bptc` and a sidecar cache key the first time it runs, then reloads the cached branch/leaf meshes on later runs when the settings key still matches. It places 3,096 deterministic trees, groups them by `(chunk, archetype, lod)`, and builds one combined branch mesh plus one combined leaf mesh per group.
+
+To inspect runtime LOD handle swapping, run:
+
+```bash
+cargo run --example lod_runtime_switching
+```
+
+To see a minimal `ExtendedMaterial<StandardMaterial, _>` leaf-wind shader, run:
+
+```bash
+cargo run --example wind_material
+```
 
 In the showroom are two trees: The tree in the middle uses the global `TreeMeshSettings` resource. The tree to the side uses the `TreeMeshSettings` component, which can be modified on the entity itself via the inspector.
 
@@ -105,21 +117,56 @@ The `cache` module can store generated archetype pools as CPU mesh data:
 
 ```rust
 use bevy_procedural_tree::cache::{
-    read_archetype_cache, write_archetype_cache, CachedArchetypePool,
+    archetype_cache_key, archetype_cache_key_matches, read_archetype_cache,
+    write_archetype_cache, write_archetype_cache_key, CachedArchetypePool,
 };
-use bevy_procedural_tree::lod::{generate_archetypes_from_settings, TreeArchetype};
+use bevy_procedural_tree::lod::{
+    generate_archetypes_from_settings_with_reduction, LodReduction, TreeArchetype,
+};
 use bevy_procedural_tree::presets::tree_preset_settings;
 
 let settings = tree_preset_settings(24);
-let archetypes: Vec<TreeArchetype> = generate_archetypes_from_settings(&settings, seed, 3)?;
-let cache = CachedArchetypePool::from_archetypes(&archetypes)?;
-write_archetype_cache("target/tree_archetypes.bptc", &cache)?;
+let reduction = LodReduction::balanced();
+let expected_key = archetype_cache_key(&settings, seed, 3, reduction);
+
+if !archetype_cache_key_matches("target/tree_archetypes.bptc.key", expected_key)? {
+    let archetypes: Vec<TreeArchetype> =
+        generate_archetypes_from_settings_with_reduction(&settings, seed, 3, reduction)?;
+    let cache = CachedArchetypePool::from_archetypes(&archetypes)?;
+    write_archetype_cache("target/tree_archetypes.bptc", &cache)?;
+    write_archetype_cache_key("target/tree_archetypes.bptc.key", expected_key)?;
+}
 
 let cached = read_archetype_cache("target/tree_archetypes.bptc")?;
 let archetypes = cached.into_archetypes();
 ```
 
-For course-scale scenes, pick an archetype deterministically per placement, pick an LOD by distance, and group placements by `(archetype_id, lod_level)`. Each group can reuse the same branch and leaf mesh handles rather than generating unique meshes per tree.
+For course-scale scenes, pick an archetype deterministically per placement, pick an LOD by distance, and group placements by `(chunk_id, archetype_id, lod_level, material_id)`. Static scenes can merge transformed vertices into one branch mesh and one leaf mesh per group; see `lod_cached_batching` for a compact example.
+
+### Runtime LOD and wind material examples
+The runtime LOD example keeps branch and leaf LOD mesh handles for one tree and swaps `Mesh3d` handles as the camera crosses distance bands:
+
+```bash
+cargo run --example lod_runtime_switching
+```
+
+The wind example applies a custom vertex shader only to leaf meshes through `ExtendedMaterial<StandardMaterial, TreeWindExtension>`:
+
+```bash
+cargo run --example wind_material
+```
+
+The example shader is intentionally small: it keeps the crate material-agnostic while showing which generated mesh attributes are expected by a PBR foliage material (`POSITION`, `NORMAL`, and `UV_0`).
+
+```rust
+use bevy::pbr::ExtendedMaterial;
+use bevy::prelude::*;
+
+type TreeWindMaterial = ExtendedMaterial<StandardMaterial, TreeWindExtension>;
+
+// Generate branch + leaf meshes as usual.
+// Spawn branches with StandardMaterial and leaves with TreeWindMaterial.
+```
 
 ### Course-scale benchmark
 The benchmark example estimates mesh generation cost and course-scale placement cost for 24 archetypes, 3 LOD levels, and 3,096 deterministic tree placements:
@@ -146,11 +193,7 @@ Added to an entity to generate a new tree. It has 4 parameters:
 
 ## Possible ToDos
 * Do not regenerate the whole tree each time the settings change (but do partial updates)
-* Provide an example vertex shader for wind
 * Implement "growing"
-* Runtime cache invalidation helpers for apps that rebuild archetype pools from changing settings
-* Runtime LOD switching example
-* True chunk-combine batching example for static course-scale scenes
 * Different "normal" modes (currently just orthogonal to the surface; i.e. inspiration: [Reddit: Fluffy trees](https://www.reddit.com/r/Unity3D/comments/jhwfkj/fluffy_trees_using_custom_shader_that_turns_quad/))
 
 ## Future research
