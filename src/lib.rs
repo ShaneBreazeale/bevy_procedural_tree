@@ -2,6 +2,7 @@ pub mod enums;
 pub mod settings;
 pub mod errors;
 
+pub mod cache;
 pub mod meshgen;
 pub mod lod;
 pub mod presets;

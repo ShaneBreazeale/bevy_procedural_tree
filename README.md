@@ -38,6 +38,14 @@ To print CSV-style LOD mesh stats and course-scale placement estimates, run:
 cargo run --example lod_course_scale_bench --features u32_indices
 ```
 
+To see a build-time cache plus placement batching/instancing workflow, run:
+
+```bash
+cargo run --example lod_cached_batching
+```
+
+This example writes `target/tree_archetype_pool.bptc` the first time it runs, then reloads the cached branch/leaf meshes on later runs. It places 3,096 deterministic trees and groups them by `(archetype, lod)` so all placements in a group reuse the same mesh handles.
+
 In the showroom are two trees: The tree in the middle uses the global `TreeMeshSettings` resource. The tree to the side uses the `TreeMeshSettings` component, which can be modified on the entity itself via the inspector.
 
 ### Quick start (with TreeProceduralGenerationPlugin)
@@ -91,6 +99,25 @@ The `presets` module includes six reusable prototype families:
 * scrub ornamental
 
 Use `bevy_procedural_tree::presets::tree_preset_settings(count)` to build a deterministic settings pool from these families.
+
+### Build-time cache and batching
+The `cache` module can store generated archetype pools as CPU mesh data:
+
+```rust
+use bevy_procedural_tree::cache::{
+    read_archetype_cache, write_archetype_cache, CachedArchetypePool,
+};
+use bevy_procedural_tree::lod::{generate_archetypes_from_settings, TreeArchetype};
+
+let archetypes: Vec<TreeArchetype> = generate_archetypes_from_settings(&settings, seed, 3)?;
+let cache = CachedArchetypePool::from_archetypes(&archetypes)?;
+write_archetype_cache("target/tree_archetypes.bptc", &cache)?;
+
+let cached = read_archetype_cache("target/tree_archetypes.bptc")?;
+let archetypes = cached.into_archetypes();
+```
+
+For course-scale scenes, pick an archetype deterministically per placement, pick an LOD by distance, and group placements by `(archetype_id, lod_level)`. Each group can reuse the same branch and leaf mesh handles rather than generating unique meshes per tree.
 
 ### Course-scale benchmark
 The benchmark example estimates mesh generation cost and course-scale placement cost for 24 archetypes, 3 LOD levels, and 3,096 deterministic tree placements:

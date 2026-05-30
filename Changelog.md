@@ -1,4 +1,6 @@
 ### Unreleased
+* Add build-time archetype cache helpers for writing and reading generated branch/leaf mesh pools.
+* Add a cached batching example that groups course-scale placements by `(archetype, lod)` and reuses mesh handles.
 * Add LOD generation helpers and deterministic archetype-pool generation, including branch tessellation and leaf-card density reduction.
 * Make the benchmark-selected balanced LOD profile the default, with conservative and aggressive presets available explicitly.
 * Add settings-pool archetype generation for stronger silhouette variation.
