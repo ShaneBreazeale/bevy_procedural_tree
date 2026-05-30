@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use bevy::core_pipeline::tonemapping::Tonemapping;
 
 use bevy_procedural_tree::settings::TreeMeshSettings;
-use bevy_procedural_tree::{Tree, TreeProceduralGenerationPlugin};
+use bevy_procedural_tree::{Tree, TreeMaterialPolicy, TreeProceduralGenerationPlugin};
 
 #[cfg(feature = "inspector")]
 use bevy_inspector_egui::bevy_egui::EguiPlugin;
@@ -109,6 +109,7 @@ fn setup(
         Tree {
             seed: 0,
             tree_mesh_settings_override: None, // set to None to fallback to the global resource
+            material_policy: TreeMaterialPolicy::StandardDefaults,
             bark_material_override: bark_material.clone(),
             leaf_material_override: leaf_material.clone(),
         },
@@ -120,6 +121,7 @@ fn setup(
         Tree {
             seed: 0,
             tree_mesh_settings_override: Some(TreeMeshSettings::default()), // set to None to fallback to the global resource
+            material_policy: TreeMaterialPolicy::StandardDefaults,
             bark_material_override: bark_material,
             leaf_material_override: leaf_material,
         },

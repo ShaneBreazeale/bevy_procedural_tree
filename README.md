@@ -6,10 +6,17 @@ Procedural 3D trees for bevy - ported from the javascript ez-tree repository wit
 ## Features
 * Mesh generation based on given TreeMeshSettings (a standard Mesh3d)
 * Generation by global TreeMeshSettings or per instance (chosen per entity)
-* User can provide a material for the branches and leafs separately 
+* Default StandardMaterial convenience path, plus mesh-only generation for custom Bevy material plugins
 * Auto regeneration of the meshes when the settings change
 * LOD and archetype-pool helpers for games that cache, batch, or instance trees themselves
 * Optional use of u32_indices for the mesh (default is u16; see `u32_indices` feature in Cargo.toml)
+
+## Installation
+Add the crate to your Bevy 0.18 project:
+
+```bash
+cargo add bevy_procedural_tree
+```
 
 ## Usage
 See the showroom example:
@@ -58,14 +65,64 @@ To see a minimal `ExtendedMaterial<StandardMaterial, _>` leaf-wind shader, run:
 cargo run --example wind_material
 ```
 
+To use `TreeProceduralGenerationPlugin` without forcing StandardMaterial components, run:
+
+```bash
+cargo run --example mesh_only_material
+```
+
 In the showroom are two trees: The tree in the middle uses the global `TreeMeshSettings` resource. The tree to the side uses the `TreeMeshSettings` component, which can be modified on the entity itself via the inspector.
 
 ### Quick start (with TreeProceduralGenerationPlugin)
 1. To enable auto generation: add the `TreeProceduralGenerationPlugin` to your app
-2. (Optional) Modify the `TreeMeshSettings` and `TreeDefaultMaterials` to your liking
-3. Spawn an entity and add the `Tree`component
+2. (Optional) Modify the `TreeMeshSettings` resource or provide local settings on the `Tree` component
+3. Spawn an entity and add the `Tree` component
 
-Internally this will generate the Mesh3d for the entity and a child entity for the mesh of the leaves. It will apply the materials from the `TreeDefaultMaterials` resource, or from a provided override.
+Internally this generates a `Mesh3d` for the branch entity and a child `Leaves` entity for the leaf mesh. By default, `TreeMaterialPolicy::StandardDefaults` applies `TreeDefaultMaterials` or the per-tree StandardMaterial overrides.
+
+```rust
+use bevy_procedural_tree::{Tree, TreeProceduralGenerationPlugin};
+
+app.add_plugins(TreeProceduralGenerationPlugin);
+
+commands.spawn((
+    Tree {
+        seed: 42,
+        ..default()
+    },
+    Transform::default(),
+));
+```
+
+Bevy's render world does not support a dynamic `dyn Material` component: material component types are concrete (`MeshMaterial3d<M>`) and each `M` needs its own `MaterialPlugin<M>`. For custom materials, spawn the tree with `TreeMaterialPolicy::MeshOnly`. The plugin inserts only generated meshes and leaves your material components alone.
+
+```rust
+use bevy_procedural_tree::{Leaves, Tree, TreeMaterialPolicy};
+
+commands.spawn((
+    Tree {
+        seed: 42,
+        material_policy: TreeMaterialPolicy::MeshOnly,
+        ..default()
+    },
+    MeshMaterial3d(my_branch_material),
+    Transform::default(),
+));
+
+fn attach_leaf_materials(
+    leaves: Query<Entity, Added<Leaves>>,
+    leaf_material: Res<MyLeafMaterial>,
+    mut commands: Commands,
+) {
+    for entity in &leaves {
+        commands
+            .entity(entity)
+            .insert(MeshMaterial3d(leaf_material.0.clone()));
+    }
+}
+```
+
+See `examples/mesh_only_material.rs` for a complete plugin-path example with `ExtendedMaterial<StandardMaterial, _>`.
 
 ### Quick start (without TreeProceduralGenerationPlugin)
 1. use `bevy_procedural_tree::meshgen::generate_tree_meshes()` to generate two meshes (branches/trunk mesh and leaves mesh)
@@ -181,13 +238,14 @@ It prints CSV-style sections for per-mesh stats, camera-distance LOD assignment,
 #### TreeMeshSettings resource
 Defines the general structure of the generated 3d mesh. Every parameter is documented.
 
-#### TreeDefaultTextures resource
+#### TreeDefaultMaterials resource
 Defines the default materials used by trees which do not use the override.
 
 #### Tree component
-Added to an entity to generate a new tree. It has 4 parameters:
+Added to an entity to generate a new tree. It has 5 parameters:
 * a seed to make this tree unique (using the same seed, with the same TreeMeshSettings produces the same tree mesh)
 * an optional override for the `TreeMeshSettings` resource
+* a `TreeMaterialPolicy` choosing default StandardMaterial insertion or mesh-only generation
 * an optional override for the `TreeDefaultMaterials` bark material
 * an optional override for the `TreeDefaultMaterials` leaf material
 
@@ -196,9 +254,6 @@ Added to an entity to generate a new tree. It has 4 parameters:
 * Implement "growing"
 * Different "normal" modes (currently just orthogonal to the surface; i.e. inspiration: [Reddit: Fluffy trees](https://www.reddit.com/r/Unity3D/comments/jhwfkj/fluffy_trees_using_custom_shader_that_turns_quad/))
 
-## Future research
-* How to generalize materials to not force the user to provide a StandardMaterial
-
 ## Supported Bevy Versions
 
 | Bevy    | bevy_procedural_tree |
@@ -206,6 +261,9 @@ Added to an entity to generate a new tree. It has 4 parameters:
 | 0.18    | 0.3   |
 | 0.17    | 0.2   |
 | 0.16    | 0.1   |
+
+## License
+Licensed under either MIT or Apache-2.0.
 
 ## Acknowledgements
 * https://github.com/dgreenheck/ez-tree

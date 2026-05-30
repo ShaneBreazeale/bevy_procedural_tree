@@ -1,4 +1,7 @@
 ### Unreleased
+* Add `TreeMaterialPolicy::MeshOnly` so `TreeProceduralGenerationPlugin` can generate branch/leaf `Mesh3d` components without inserting `StandardMaterial` components.
+* Make the generated leaf-child marker public as `Leaves` so callers can attach their own leaf material components.
+* Add a plugin-path custom material example using `MeshOnly` with `ExtendedMaterial<StandardMaterial, _>`.
 * Add build-time archetype cache helpers for writing and reading generated branch/leaf mesh pools.
 * Add cache-key helpers for invalidating generated archetype caches when settings, seeds, LOD count, or LOD reduction profiles change.
 * Add a cached chunk-batching example that groups course-scale placements by `(chunk, archetype, lod)` and merges each group into combined branch/leaf meshes.
