@@ -2,8 +2,11 @@
 * Add LOD generation helpers and deterministic archetype-pool generation, including branch tessellation and leaf-card density reduction.
 * Make the benchmark-selected balanced LOD profile the default, with conservative and aggressive presets available explicitly.
 * Add settings-pool archetype generation for stronger silhouette variation.
+* Add reusable prototype tree preset families for examples and archetype-pool experiments.
 * Add an archetype/LOD grid example.
+* Add profile and LOD hotkeys plus visible mesh statistics to the archetype/LOD viewer.
 * Add a course-scale LOD benchmark example.
+* Add mesh attribute contract tests for branch/leaf positions, normals, UVs, indices, bounds, and leaf-card UVs.
 * Document LOD/archetype-pool usage and benchmark workflow in the README.
 
 ### v0.3

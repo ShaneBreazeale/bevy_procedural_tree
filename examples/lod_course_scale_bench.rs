@@ -6,11 +6,10 @@ use std::time::Instant;
 use bevy::mesh::{Indices, VertexAttributeValues};
 use bevy::prelude::*;
 
-use bevy_procedural_tree::enums::TreeType;
 use bevy_procedural_tree::lod::{
     generate_archetypes_from_settings_with_reduction, LodReduction, TreeArchetype,
 };
-use bevy_procedural_tree::settings::TreeMeshSettings;
+use bevy_procedural_tree::presets::tree_preset_settings;
 
 const ARCHETYPES: u32 = 24;
 const LOD_LEVELS: u32 = 3;
@@ -82,7 +81,7 @@ fn main() {
 
 #[cfg(feature = "u32_indices")]
 fn main() {
-    let settings = archetype_settings(ARCHETYPES);
+    let settings = tree_preset_settings(ARCHETYPES);
     let placements = course_scale_placements(PLACEMENTS, ARCHETYPES);
     let cameras = camera_samples();
 
@@ -341,78 +340,6 @@ fn camera_samples() -> [CameraSample; 5] {
             pos: Vec3::new(1_550.0, 3.0, 760.0),
         },
     ]
-}
-
-fn archetype_settings(count: u32) -> Vec<TreeMeshSettings> {
-    (0..count)
-        .map(|i| {
-            let mut settings = TreeMeshSettings::default();
-            let t = i as f32 / count.saturating_sub(1).max(1) as f32;
-            let wave = (i as f32 * 1.618_034).sin() * 0.5 + 0.5;
-            match i % 6 {
-                0 => {
-                    settings.branch.length = [3.6 + wave * 0.4, 2.2, 1.2, 0.32];
-                    settings.branch.angle = [0.0, 46.0, 54.0, 66.0];
-                    settings.branch.children = [6, 4, 9];
-                    settings.branch.trunk_base_radius = 0.17;
-                    settings.leaves.count = 4;
-                    settings.leaves.size = 0.22;
-                }
-                1 => {
-                    settings.branch.length = [5.7 + wave, 2.4, 1.0, 0.28];
-                    settings.branch.angle = [0.0, 23.0, 30.0, 38.0];
-                    settings.branch.children = [5, 4, 6];
-                    settings.branch.force.direction = Vec3::Y;
-                    settings.branch.force.strength = 0.16;
-                    settings.branch.trunk_base_radius = 0.20;
-                    settings.leaves.count = 3;
-                    settings.leaves.size = 0.20;
-                }
-                2 => {
-                    settings.branch.length = [3.2, 3.4 + wave * 0.7, 2.0, 0.55];
-                    settings.branch.angle = [0.0, 70.0, 62.0, 58.0];
-                    settings.branch.children = [7, 5, 12];
-                    settings.branch.force.direction = Vec3::new(0.0, 0.35, 0.0);
-                    settings.branch.force.strength = 0.03;
-                    settings.branch.trunk_base_radius = 0.24;
-                    settings.leaves.count = 5;
-                    settings.leaves.size = 0.28;
-                }
-                3 => {
-                    settings.tree_type = TreeType::Evergreen;
-                    settings.branch.length = [6.8 + wave * 1.0, 2.0, 0.9, 0.30];
-                    settings.branch.angle = [0.0, 66.0, 58.0, 48.0];
-                    settings.branch.children = [14, 6, 7];
-                    settings.branch.force.direction = Vec3::new(0.0, -0.35, 0.0);
-                    settings.branch.force.strength = 0.18;
-                    settings.branch.trunk_base_radius = 0.17;
-                    settings.leaves.count = 5;
-                    settings.leaves.size = 0.20;
-                }
-                4 => {
-                    settings.branch.length = [4.8 + t * 0.8, 3.3, 1.8, 0.45];
-                    settings.branch.angle = [0.0, 40.0, 45.0, 52.0];
-                    settings.branch.children = [4, 3, 5];
-                    settings.branch.gnarliness = [0.02, 0.34, 0.28, 0.08];
-                    settings.branch.trunk_base_radius = 0.22;
-                    settings.leaves.count = 2;
-                    settings.leaves.size = 0.34;
-                    settings.leaves.size_variance = 0.45;
-                }
-                _ => {
-                    settings.branch.length = [4.3 + wave * 0.6, 3.0, 1.7, 0.48];
-                    settings.branch.angle = [0.0, 56.0, 48.0, 62.0];
-                    settings.branch.children = [9, 5, 13];
-                    settings.branch.gnarliness = [-0.02, 0.18, 0.18, 0.06];
-                    settings.branch.trunk_base_radius = 0.21;
-                    settings.leaves.count = 7;
-                    settings.leaves.size = 0.25;
-                    settings.leaves.size_variance = 0.28;
-                }
-            }
-            settings
-        })
-        .collect()
 }
 
 fn hash2(mut x: u32, mut y: u32) -> u32 {

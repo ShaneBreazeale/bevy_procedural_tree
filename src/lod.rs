@@ -295,13 +295,106 @@ pub fn generate_archetypes(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bevy::mesh::VertexAttributeValues;
+    use bevy::mesh::{Indices, VertexAttributeValues};
+
+    fn positions(mesh: &Mesh) -> &Vec<[f32; 3]> {
+        match mesh.attribute(Mesh::ATTRIBUTE_POSITION) {
+            Some(VertexAttributeValues::Float32x3(positions)) => positions,
+            _ => panic!("mesh is missing Float32x3 positions"),
+        }
+    }
+
+    fn normals(mesh: &Mesh) -> &Vec<[f32; 3]> {
+        match mesh.attribute(Mesh::ATTRIBUTE_NORMAL) {
+            Some(VertexAttributeValues::Float32x3(normals)) => normals,
+            _ => panic!("mesh is missing Float32x3 normals"),
+        }
+    }
+
+    fn uvs(mesh: &Mesh) -> &Vec<[f32; 2]> {
+        match mesh.attribute(Mesh::ATTRIBUTE_UV_0) {
+            Some(VertexAttributeValues::Float32x2(uvs)) => uvs,
+            _ => panic!("mesh is missing Float32x2 uv0"),
+        }
+    }
+
+    fn indices(mesh: &Mesh) -> Vec<u32> {
+        match mesh.indices() {
+            Some(Indices::U16(indices)) => indices.iter().map(|i| *i as u32).collect(),
+            Some(Indices::U32(indices)) => indices.clone(),
+            None => panic!("mesh is missing indices"),
+        }
+    }
 
     fn position_count(mesh: &Mesh) -> usize {
-        match mesh.attribute(Mesh::ATTRIBUTE_POSITION) {
-            Some(VertexAttributeValues::Float32x3(positions)) => positions.len(),
-            _ => 0,
+        positions(mesh).len()
+    }
+
+    fn assert_mesh_contract(mesh: &Mesh) {
+        let positions = positions(mesh);
+        let normals = normals(mesh);
+        let uvs = uvs(mesh);
+        let indices = indices(mesh);
+
+        assert!(!positions.is_empty(), "mesh must have vertices");
+        assert_eq!(
+            normals.len(),
+            positions.len(),
+            "normal count must match vertices"
+        );
+        assert_eq!(uvs.len(), positions.len(), "uv0 count must match vertices");
+        assert_eq!(indices.len() % 3, 0, "index count must form triangles");
+        assert!(!indices.is_empty(), "mesh must have indexed triangles");
+
+        for index in &indices {
+            assert!(
+                (*index as usize) < positions.len(),
+                "index {index} must point at an existing vertex"
+            );
         }
+
+        let mut min = Vec3::splat(f32::INFINITY);
+        let mut max = Vec3::splat(f32::NEG_INFINITY);
+        for position in positions {
+            let p = Vec3::from_array(*position);
+            assert!(p.is_finite(), "mesh positions must be finite");
+            min = min.min(p);
+            max = max.max(p);
+        }
+
+        let extent = max - min;
+        assert!(
+            extent.max_element() > 0.01,
+            "mesh bounds must have visible size"
+        );
+        assert!(
+            extent.max_element() < 100.0,
+            "mesh bounds must remain in a sane tree-scale range"
+        );
+
+        for normal in normals {
+            let n = Vec3::from_array(*normal);
+            assert!(n.is_finite(), "mesh normals must be finite");
+            assert!(n.length_squared() > 0.0, "mesh normals must be non-zero");
+        }
+    }
+
+    fn assert_leaf_uv_contract(mesh: &Mesh) {
+        let uvs = uvs(mesh);
+        let mut saw_low = false;
+        let mut saw_high = false;
+        for uv in uvs {
+            assert!(
+                (0.0..=1.0).contains(&uv[0]) && (0.0..=1.0).contains(&uv[1]),
+                "leaf uv0 coordinates must stay inside the alpha-card texture range"
+            );
+            saw_low |= uv[0] <= 0.01 || uv[1] <= 0.01;
+            saw_high |= uv[0] >= 0.99 || uv[1] >= 0.99;
+        }
+        assert!(
+            saw_low && saw_high,
+            "leaf UVs should cover alpha-card texture corners"
+        );
     }
 
     #[test]
@@ -345,6 +438,18 @@ mod tests {
         assert!(lod1_vertices >= lod2_vertices);
         assert!(lod0_leaf_vertices > lod1_leaf_vertices);
         assert!(lod1_leaf_vertices > lod2_leaf_vertices);
+    }
+
+    #[test]
+    fn generated_lods_keep_mesh_attribute_contracts() {
+        let base = TreeMeshSettings::default();
+        let lods = generate_tree_lods(&base, 123, 3).expect("LOD generation should succeed");
+
+        for (branch_mesh, leaf_mesh) in &lods {
+            assert_mesh_contract(branch_mesh);
+            assert_mesh_contract(leaf_mesh);
+            assert_leaf_uv_contract(leaf_mesh);
+        }
     }
 
     #[test]

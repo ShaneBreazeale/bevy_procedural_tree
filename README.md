@@ -24,6 +24,14 @@ To inspect generated LODs and seed-stable archetype pools, run:
 cargo run --example lod_archetype_pool
 ```
 
+The archetype-pool viewer includes profile and LOD toggles for visual tuning:
+
+* `1`, `2`, `3` isolate LOD 0, 1, or 2
+* `0` shows all LOD rows again
+* `B`, `A`, `C` switch between balanced, aggressive, and conservative reduction profiles
+
+The overlay reports the selected profile, active LOD view, archetype count, and visible vertex/triangle totals.
+
 To print CSV-style LOD mesh stats and course-scale placement estimates, run:
 
 ```bash
@@ -72,6 +80,17 @@ let (branch_mesh, leaf_mesh) = &tree.lods[lod_level];
 * `conservative()` - higher detail for hero trees or close camera work
 
 For stronger shape variation than seed changes alone provide, prepare several `TreeMeshSettings` presets and call `generate_archetypes_from_settings()` or `generate_archetypes_from_settings_with_reduction()`.
+
+The `presets` module includes six reusable prototype families:
+
+* compact round deciduous
+* wide umbrella deciduous
+* tall sparse deciduous
+* leaning edge deciduous
+* tall narrow conifer
+* scrub ornamental
+
+Use `bevy_procedural_tree::presets::tree_preset_settings(count)` to build a deterministic settings pool from these families.
 
 ### Course-scale benchmark
 The benchmark example estimates mesh generation cost and course-scale placement cost for 24 archetypes, 3 LOD levels, and 3,096 deterministic tree placements:
